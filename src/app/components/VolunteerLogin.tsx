@@ -57,7 +57,7 @@ export default function AdminLogin() {
         }`} // Apply border effect conditionally
       >
         <h2 className="text-4xl font-extrabold text-center text-white tracking-wide mb-4">
-          {showForgotPassword ? 'Reset Password' : 'Admin Login'}
+          {showForgotPassword ? 'Reset Password' : 'Volunteers Login'}
         </h2>
 
         {error && <p className="text-red-400 text-center font-semibold mb-4">{error}</p>}
