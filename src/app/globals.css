@@ -19,3 +19,17 @@ body {
   background: var(--background);
   font-family: Arial, Helvetica, sans-serif;
 }
+@keyframes lightning {
+  0%, 100% {
+    border-color: rgba(255, 255, 255, 0.3);
+  }
+  50% {
+    border-color: rgba(255, 255, 255, 1);
+  }
+}
+
+.border-lightning {
+  animation: lightning 1s ease-in-out infinite;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-radius: 20px;
+}

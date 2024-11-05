@@ -1,97 +1,185 @@
-"use client";
-import { useState, useEffect } from "react";
-import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
-import { collection, getDocs, query, where } from "firebase/firestore";
-import { db } from "../../lib/firebaseConfig"; // Adjust the import path as necessary
-import { useRouter } from "next/navigation";
+// src/app/components/AdminLogin.tsx
+'use client';
 
-const Login = () => {
-  const auth = getAuth();
+import { useState, useEffect } from 'react';
+import { auth } from '../../lib/firebaseConfig'; // Import auth to access current user
+import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
+import { useRouter } from 'next/navigation';
+import Cookies from 'js-cookie'; // Import js-cookie for setting cookies
+import { getFirestore, doc, getDoc } from 'firebase/firestore'; // Firestore functions
+
+const db = getFirestore(); // Initialize Firestore
+
+export default function AdminLogin() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false); // Loading state for border effect
   const router = useRouter();
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [loading, setLoading] = useState<boolean>(false);
-
-  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
     setLoading(true);
 
     try {
-      // Authenticate user
+      // Authenticate with Firebase using email and password
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
+      const token = await userCredential.user.getIdToken();
+      const userId = userCredential.user.uid;
 
-      // Check if user is a volunteer by querying the 'users' collection
-      const q = query(
-        collection(db, "users"),
-        where("uid", "==", user.uid),
-        where("role", "==", "volunteer")
-      );
-      const querySnapshot = await getDocs(q);
+      // Retrieve the user's role from Firestore
+      const userDoc = await getDoc(doc(db, 'volunteers', userId));
+      const userData = userDoc.data();
 
-      if (!querySnapshot.empty) {
-        // User has "volunteer" role, redirect to dashboard
-        router.push("/dashboard");
+      if (userData?.role === 'volunteer') {
+        // Set the auth token in cookies
+        Cookies.set('authToken', token, { expires: 1, secure: true, sameSite: 'Strict' });
+        // Redirect to dashboard on successful login
+        router.push('/dashboard');
       } else {
-        // User does not have volunteer role
-        setErrorMessage("Access denied. Only volunteers can log in.");
+        setError('Access denied. Admin only.');
+        auth.signOut(); // Sign out the user if not an admin
+        setLoading(false);
       }
-    } catch (error) {
-      console.error("Login error:", error);
-      setErrorMessage("Invalid email or password. Please try again.");
-    } finally {
+    } catch (err: any) {
+      setError('Invalid email or password. Please try again.');
       setLoading(false);
     }
   };
 
   return (
-    <div className="max-w-md mx-auto p-8 mt-10 h-full bg-gradient-to-r from-blue-50 to-white rounded-lg shadow-xl">
-      <h2 className="text-3xl font-semibold mb-6 text-center text-blue-600">
-        Volunteer Login
-      </h2>
-      {errorMessage && (
-        <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg text-center">
-          {errorMessage}
-        </div>
-      )}
-      <form onSubmit={handleLogin} className="space-y-5">
-        <input
-          type="email"
-          name="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200"
-        />
-        <input
-          type="password"
-          name="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200"
-        />
-        <button
-          type="submit"
-          disabled={loading}
-          className={`w-full p-3 rounded-lg transition duration-200 shadow-md ${loading ? "bg-gray-400" : "bg-blue-600 hover:bg-blue-700"} text-white flex items-center justify-center`}
-        >
-          {loading ? (
-            <div className="flex items-center">
-              <div className="spinner mr-2"></div>
-              <span>Logging In...</span>
+    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-purple-900 to-indigo-700 p-6 w-full">
+      <div
+        className={`bg-white/10 backdrop-blur-lg rounded-3xl shadow-2xl p-10 w-full max-w-md transform transition duration-500 hover:scale-105 ${
+          loading ? 'border-lightning' : ''
+        }`} // Apply border effect conditionally
+      >
+        <h2 className="text-4xl font-extrabold text-center text-white tracking-wide mb-4">
+          {showForgotPassword ? 'Reset Password' : 'Admin Login'}
+        </h2>
+
+        {error && <p className="text-red-400 text-center font-semibold mb-4">{error}</p>}
+
+        {showForgotPassword ? (
+          <ForgotPasswordForm onClose={() => setShowForgotPassword(false)} />
+        ) : (
+          <form onSubmit={handleLogin} className="space-y-6">
+            <div>
+              <label className="block text-white font-semibold mb-1">Email</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="w-full px-4 py-2 border border-white rounded-lg bg-white/20 text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                placeholder="Enter your email"
+              />
             </div>
-          ) : (
-            "Log In"
-          )}
-        </button>
-      </form>
+
+            <div>
+              <label className="block text-white font-semibold mb-1">Password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="w-full px-4 py-2 border border-white rounded-lg bg-white/20 text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                placeholder="Enter your password"
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="w-full py-3 mt-4 bg-purple-500 text-white rounded-lg font-semibold text-lg shadow-lg hover:bg-purple-600 transform transition duration-300"
+            >
+              Log In
+            </button>
+          </form>
+        )}
+
+        {!showForgotPassword && (
+          <p className="text-center mt-4 text-purple-200">
+            <button
+              onClick={() => setShowForgotPassword(true)}
+              className="hover:underline transition"
+            >
+              Forgot Password?
+            </button>
+          </p>
+        )}
+      </div>
     </div>
   );
-};
+}
 
-export default Login;
+// ForgotPasswordForm Component
+function ForgotPasswordForm({ onClose }: { onClose: () => void }) {
+  const [email, setEmail] = useState('');
+  const [verificationSent, setVerificationSent] = useState(false);
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+
+  const handlePasswordReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setMessage('');
+
+    try {
+      await sendPasswordResetEmail(auth, email);
+      setVerificationSent(true);
+      setMessage('Password reset email sent! Check your inbox.');
+    } catch (err: any) {
+      setError('Failed to send reset email. Try again.');
+    }
+  };
+
+  return (
+    <div className="mt-6 bg-white/10 backdrop-blur-md rounded-lg p-6 shadow-lg">
+      {verificationSent ? (
+        <div className="space-y-4 text-center text-white">
+          <p className="text-green-400 font-semibold">{message}</p>
+          <button
+            onClick={onClose}
+            className="w-full py-3 mt-4 bg-purple-500 text-white rounded-lg font-semibold shadow-md hover:bg-purple-600 transition"
+          >
+            Back to Login
+          </button>
+        </div>
+      ) : (
+        <>
+          <h3 className="text-xl font-bold text-white">Reset Your Password</h3>
+          {error && <p className="text-red-400 mt-2">{error}</p>}
+          <form onSubmit={handlePasswordReset} className="space-y-4 mt-4">
+            <div>
+              <label className="block text-white font-semibold mb-1">Email</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="w-full px-4 py-2 border border-white rounded-lg bg-white/20 text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                placeholder="Enter your email"
+              />
+            </div>
+            <button
+              type="submit"
+              className="w-full py-3 bg-purple-500 text-white rounded-lg font-semibold shadow-lg hover:bg-purple-600 transform transition duration-300"
+            >
+              Send Reset Email
+            </button>
+            <button
+              onClick={onClose}
+              className="w-full py-3 mt-2 bg-gray-400 text-gray-800 rounded-lg font-semibold shadow-md hover:bg-gray-500 transition"
+            >
+              Cancel
+            </button>
+          </form>
+        </>
+      )}
+    </div>
+  );
+}
+
+// styles.css (global CSS file or inside a style tag if using Tailwind's custom styles)
