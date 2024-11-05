@@ -24,6 +24,11 @@ export default function VolunteerList() {
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [user] = useAuthState(auth); // Get current user
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const itemsPerPage = 10; // For list view
+  const gridItemsPerPage = 5; // For grid view
+
   useEffect(() => {
     const fetchRequests = async () => {
       if (!user) return; // Exit if user is not logged in
@@ -92,6 +97,17 @@ export default function VolunteerList() {
     setSelectedRequest(null);
   };
 
+  // Calculate pagination
+  const totalPages = Math.ceil(requests.length / itemsPerPage);
+  const totalGridPages = Math.ceil(requests.length / gridItemsPerPage);
+
+  // Get paginated requests
+  const paginatedRequests = (isGridView: boolean) => {
+    const startIndex = (currentPage - 1) * (isGridView ? gridItemsPerPage : itemsPerPage);
+    const endIndex = startIndex + (isGridView ? gridItemsPerPage : itemsPerPage);
+    return requests.slice(startIndex, endIndex);
+  };
+
   return (
     <div className="p-5 bg-white shadow-lg rounded-3xl">
       <h2 className="text-2xl font-semibold mb-6">Your Volunteer Requests</h2>
@@ -114,16 +130,14 @@ export default function VolunteerList() {
                 </tr>
               </thead>
               <tbody>
-                {requests.map((request) => (
+                {paginatedRequests(false).map((request) => (
                   <tr key={request.id} className="border-t hover:bg-gray-50">
                     <td className="py-3 px-4">{request.name}</td>
                     <td className="py-3 px-4">{request.email}</td>
                     <td className="py-3 px-4">
-                      <span
-                        className={`${
+                      <span className={`${
                           request.status === 'Completed' ? 'text-green-500' : 'text-blue-500'
-                        } font-semibold`}
-                      >
+                        } font-semibold`}>
                         {request.status}
                       </span>
                     </td>
@@ -149,27 +163,69 @@ export default function VolunteerList() {
                 ))}
               </tbody>
             </table>
+
+            {/* Pagination for List View */}
+            <div className="flex justify-center mt-4">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className={`mx-1 px-3 py-1 border rounded-lg ${currentPage === 1 ? 'bg-gray-300' : 'bg-gray-200 hover:bg-gray-300'}`}
+              >
+                Previous
+              </button>
+              <span className="flex items-center mx-2 font-semibold">
+                {currentPage} / {totalPages}
+              </span>
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                className={`mx-1 px-3 py-1 border rounded-lg ${currentPage === totalPages ? 'bg-gray-300' : 'bg-gray-200 hover:bg-gray-300'}`}
+              >
+                Next
+              </button>
+            </div>
           </div>
 
           {/* Grid for smaller screens */}
-          <div className=" lg:hidden grid grid-cols-1 gap-4">
-            {requests.map((request) => (
+          <div className="lg:hidden grid grid-cols-1 gap-4">
+            {paginatedRequests(true).map((request) => (
               <div key={request.id} className="border rounded-lg p-4 bg-gray-50 hover:bg-gray-100">
                 <h3 className="font-semibold">{request.name}</h3>
                 <p>Email: {request.email}</p>
                 <p>Status: <span className={request.status === 'Completed' ? 'text-green-500' : 'text-blue-500'}>{request.status}</span></p>
                 <div className="flex justify-between mt-2">
                   <button onClick={() => openModal(request)} className="text-white hover:text-gray-800 border p-2 rounded-lg bg-blue-400 ">
-                     View Details
+                    View Details
                   </button>
                   {request.status !== 'Completed' && (
-                    <button onClick={() => markAsCompleted(request.id)} className="  hover:text-green-700 border p-3 rounded-lg bg-green-300">
-                       Mark as Completed
+                    <button onClick={() => markAsCompleted(request.id)} className="hover:text-green-700 border p-3 rounded-lg bg-green-300">
+                      Mark as Completed
                     </button>
                   )}
                 </div>
               </div>
             ))}
+          </div>
+
+          {/* Pagination for Grid View */}
+          <div className="flex justify-center mt-4 lg:hidden">
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className={`mx-1 px-3 py-1 border rounded-lg ${currentPage === 1 ? 'bg-gray-300' : 'bg-gray-200 hover:bg-gray-300'}`}
+            >
+              Previous
+            </button>
+            <span className="flex items-center mx-2 font-semibold">
+              {currentPage} / {totalGridPages}
+            </span>
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalGridPages))}
+              disabled={currentPage === totalGridPages}
+              className={`mx-1 px-3 py-1 border rounded-lg ${currentPage === totalGridPages ? 'bg-gray-300' : 'bg-gray-200 hover:bg-gray-300'}`}
+            >
+              Next
+            </button>
           </div>
         </>
       )}
