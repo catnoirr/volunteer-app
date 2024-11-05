@@ -1,21 +1,21 @@
 // src/app/components/AdminLogin.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
-import { auth } from '../../lib/firebaseConfig'; // Import auth to access current user
+import { useState } from 'react';
+import { auth } from '../../lib/firebaseConfig';
 import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
-import Cookies from 'js-cookie'; // Import js-cookie for setting cookies
-import { getFirestore, doc, getDoc } from 'firebase/firestore'; // Firestore functions
+import Cookies from 'js-cookie';
+import { getFirestore, doc, getDoc } from 'firebase/firestore';
 
-const db = getFirestore(); // Initialize Firestore
+const db = getFirestore();
 
 export default function AdminLogin() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false); // Loading state for border effect
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -24,25 +24,26 @@ export default function AdminLogin() {
     setLoading(true);
 
     try {
-      // Authenticate with Firebase using email and password
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const token = await userCredential.user.getIdToken();
       const userId = userCredential.user.uid;
 
-      // Retrieve the user's role from Firestore
+      // Retrieve the user's role and verification status
       const userDoc = await getDoc(doc(db, 'volunteers', userId));
       const userData = userDoc.data();
 
-      if (userData?.role === 'volunteer') {
-        // Set the auth token in cookies
+      if (userData?.role === 'volunteer' && userData?.verified) {
         Cookies.set('authToken', token, { expires: 1, secure: true, sameSite: 'Strict' });
-        // Redirect to dashboard on successful login
         router.push('/dashboard');
+      } else if (userData?.role === 'volunteer' && !userData?.verified) {
+        setError('Please wait for admin verification.');
+        auth.signOut();
       } else {
-        setError('Access denied. Admin only.');
-        auth.signOut(); // Sign out the user if not an admin
-        setLoading(false);
+        setError('Access denied. Volunteers only.');
+        auth.signOut();
       }
+
+      setLoading(false);
     } catch (err: any) {
       setError('Invalid email or password. Please try again.');
       setLoading(false);
@@ -54,7 +55,7 @@ export default function AdminLogin() {
       <div
         className={`bg-white/10 backdrop-blur-lg rounded-3xl shadow-2xl p-10 w-full max-w-md transform transition duration-500 hover:scale-105 ${
           loading ? 'border-lightning' : ''
-        }`} // Apply border effect conditionally
+        }`}
       >
         <h2 className="text-4xl font-extrabold text-center text-white tracking-wide mb-4">
           {showForgotPassword ? 'Reset Password' : 'Volunteers Login'}
@@ -181,5 +182,3 @@ function ForgotPasswordForm({ onClose }: { onClose: () => void }) {
     </div>
   );
 }
-
-// styles.css (global CSS file or inside a style tag if using Tailwind's custom styles)
