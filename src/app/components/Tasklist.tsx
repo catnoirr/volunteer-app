@@ -101,51 +101,77 @@ export default function VolunteerList() {
       ) : errorMessage ? (
         <p className="text-red-500">{errorMessage}</p>
       ) : (
-        <table className="w-full border-t border-gray-200">
-          <thead>
-            <tr className="bg-gray-50">
-              <th className="text-left py-3 px-4 font-medium text-gray-600">Name</th>
-              <th className="text-left py-3 px-4 font-medium text-gray-600">Email</th>
-              <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
-              <th className="text-center py-3 px-4 font-medium text-gray-600">Action</th>
-            </tr>
-          </thead>
-          <tbody>
+        <>
+          {/* Table for larger screens */}
+          <div className="hidden lg:block">
+            <table className="w-full border-t border-gray-200">
+              <thead>
+                <tr className="bg-gray-50">
+                  <th className="text-left py-3 px-4 font-medium text-gray-600">Name</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-600">Email</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
+                  <th className="text-center py-3 px-4 font-medium text-gray-600">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {requests.map((request) => (
+                  <tr key={request.id} className="border-t hover:bg-gray-50">
+                    <td className="py-3 px-4">{request.name}</td>
+                    <td className="py-3 px-4">{request.email}</td>
+                    <td className="py-3 px-4">
+                      <span
+                        className={`${
+                          request.status === 'Completed' ? 'text-green-500' : 'text-blue-500'
+                        } font-semibold`}
+                      >
+                        {request.status}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4 text-center">
+                      <button
+                        onClick={() => openModal(request)}
+                        className="text-gray-600 hover:text-gray-800"
+                        title="View Details"
+                      >
+                        <FaEye />
+                      </button>
+                      {request.status !== 'Completed' && (
+                        <button
+                          onClick={() => markAsCompleted(request.id)}
+                          className="text-green-500 hover:text-green-700 ml-2"
+                          title="Mark as Completed"
+                        >
+                          <FaCheck />
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Grid for smaller screens */}
+          <div className=" lg:hidden grid grid-cols-1 gap-4">
             {requests.map((request) => (
-              <tr key={request.id} className="border-t hover:bg-gray-50">
-                <td className="py-3 px-4">{request.name}</td>
-                <td className="py-3 px-4">{request.email}</td>
-                <td className="py-3 px-4">
-                  <span
-                    className={`${
-                      request.status === 'Completed' ? 'text-green-500' : 'text-blue-500'
-                    } font-semibold`}
-                  >
-                    {request.status}
-                  </span>
-                </td>
-                <td className="py-3 px-4 text-center">
-                  <button
-                    onClick={() => openModal(request)}
-                    className="text-gray-600 hover:text-gray-800"
-                    title="View Details"
-                  >
-                    <FaEye />
+              <div key={request.id} className="border rounded-lg p-4 bg-gray-50 hover:bg-gray-100">
+                <h3 className="font-semibold">{request.name}</h3>
+                <p>Email: {request.email}</p>
+                <p>Status: <span className={request.status === 'Completed' ? 'text-green-500' : 'text-blue-500'}>{request.status}</span></p>
+                <div className="flex justify-between mt-2">
+                  <button onClick={() => openModal(request)} className="text-white hover:text-gray-800 border p-2 rounded-lg bg-blue-400 ">
+                     View Details
                   </button>
                   {request.status !== 'Completed' && (
-                    <button
-                      onClick={() => markAsCompleted(request.id)}
-                      className="text-green-500 hover:text-green-700 ml-2"
-                      title="Mark as Completed"
-                    >
-                      <FaCheck />
+                    <button onClick={() => markAsCompleted(request.id)} className="  hover:text-green-700 border p-3 rounded-lg bg-green-300">
+                       Mark as Completed
                     </button>
                   )}
-                </td>
-              </tr>
+                </div>
+              </div>
             ))}
-          </tbody>
-        </table>
+          </div>
+        </>
       )}
 
       <Modal isOpen={isModalOpen} onClose={closeModal} title="Request Details">
