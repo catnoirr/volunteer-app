@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from 'react';
-import { collection, getDocs, doc, getDoc, updateDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, updateDoc, onSnapshot } from 'firebase/firestore';
 import { db } from "../../lib/firebaseConfig"; // Adjust the import path as necessary
 import { FaCheck, FaEye } from 'react-icons/fa'; // Import eye and check icons
 import Modal from './Modal'; // Import the Modal component
@@ -30,45 +30,40 @@ export default function VolunteerList() {
   const gridItemsPerPage = 5; // For grid view
 
   useEffect(() => {
-    const fetchRequests = async () => {
-      if (!user) return; // Exit if user is not logged in
+    if (!user) return; // Exit if user is not logged in
 
-      try {
-        // Fetch the logged-in user's volunteer data
-        const volunteerDocRef = doc(db, 'volunteers', user.uid);
-        const volunteerDoc = await getDoc(volunteerDocRef);
-
-        // Ensure the document exists
-        if (!volunteerDoc.exists()) {
-          throw new Error("Volunteer document not found.");
-        }
-
-        const volunteerData = volunteerDoc.data();
-        const requestedUserIDs: string[] = volunteerData.requestedUsers || [];
-
-        // Fetch requests for the requested user IDs
-        const requestsData: Request[] = [];
-        for (const userId of requestedUserIDs) {
-          const requestDoc = await getDoc(doc(db, 'requests', userId));
-          if (requestDoc.exists()) {
-            const requestData = {
-              id: requestDoc.id,
-              ...requestDoc.data(),
-            } as Request;
-            requestsData.push(requestData);
-          }
-        }
-
-        setRequests(requestsData);
-      } catch (error) {
-        console.error("Error fetching requests:", error);
-        setErrorMessage("Failed to load request data.");
-      } finally {
-        setLoading(false);
+    const unsubscribe = onSnapshot(doc(db, 'volunteers', user.uid), async (volunteerDoc) => {
+      // Ensure the document exists
+      if (!volunteerDoc.exists()) {
+        throw new Error("Volunteer document not found.");
       }
-    };
 
-    fetchRequests(); // Fetch requests on component mount or user change
+      const volunteerData = volunteerDoc.data();
+      const requestedUserIDs: string[] = volunteerData.requestedUsers || [];
+
+      // Fetch requests for the requested user IDs
+      const requestsData: Request[] = [];
+      for (const userId of requestedUserIDs) {
+        const requestDoc = await getDoc(doc(db, 'requests', userId));
+        if (requestDoc.exists()) {
+          const requestData = {
+            id: requestDoc.id,
+            ...requestDoc.data(),
+          } as Request;
+          requestsData.push(requestData);
+        }
+      }
+
+      setRequests(requestsData);
+      setLoading(false); // Stop loading once data is fetched
+    }, (error) => {
+      console.error("Error fetching requests:", error);
+      setErrorMessage("Failed to load request data.");
+      setLoading(false);
+    });
+
+    // Cleanup subscription on unmount
+    return () => unsubscribe();
   }, [user]); // Depend on user to re-fetch if user state changes
 
   const markAsCompleted = async (requestId: string) => {
