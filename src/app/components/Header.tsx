@@ -1,7 +1,7 @@
 // components/Header.tsx
 "use client";
 import { useState, useEffect } from "react";
-import { FaSearch, FaUserInjured, FaSignOutAlt } from "react-icons/fa";
+import {FaUserInjured, FaSignOutAlt } from "react-icons/fa";
 import { auth, db } from "../../lib/firebaseConfig"; // Import Firebase auth and Firestore
 import { useAuthState } from "react-firebase-hooks/auth"; // Firebase hook for auth
 import { doc, getDoc } from "firebase/firestore"; // Firestore methods

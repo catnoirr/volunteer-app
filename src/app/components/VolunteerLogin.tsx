@@ -44,8 +44,13 @@ export default function AdminLogin() {
       }
 
       setLoading(false);
-    } catch (err: any) {
-      setError('Invalid email or password. Please try again.');
+    } catch (error) {
+      // Use 'unknown' type and type guard
+      if (error instanceof Error) {
+        setError(error.message || 'Invalid email or password. Please try again.');
+      } else {
+        setError('An unexpected error occurred. Please try again.');
+      }
       setLoading(false);
     }
   };
@@ -53,8 +58,7 @@ export default function AdminLogin() {
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-purple-900 to-indigo-700 p-6 w-full">
       <div
-        className={`bg-white/10 backdrop-blur-lg rounded-3xl shadow-2xl p-10 w-full max-w-md transform transition duration-500 hover:scale-105 ${
-          loading ? 'border-lightning' : ''
+        className={`bg-white/10 backdrop-blur-lg rounded-3xl shadow-2xl p-10 w-full max-w-md transform transition duration-500 hover:scale-105 ${loading ? 'border-lightning' : ''
         }`}
       >
         <h2 className="text-4xl font-extrabold text-center text-white tracking-wide mb-4">
@@ -131,8 +135,13 @@ function ForgotPasswordForm({ onClose }: { onClose: () => void }) {
       await sendPasswordResetEmail(auth, email);
       setVerificationSent(true);
       setMessage('Password reset email sent! Check your inbox.');
-    } catch (err: any) {
-      setError('Failed to send reset email. Try again.');
+    } catch (error) {
+      // Use 'unknown' type and type guard
+      if (error instanceof Error) {
+        setError(error.message || 'Failed to send reset email. Try again.');
+      } else {
+        setError('An unexpected error occurred. Please try again.');
+      }
     }
   };
 

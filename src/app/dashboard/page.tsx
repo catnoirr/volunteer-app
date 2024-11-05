@@ -4,7 +4,6 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthState } from "react-firebase-hooks/auth"; // Firebase auth hook
 import { auth } from "../../lib/firebaseConfig"; // Import Firebase auth configuration
-import Sidebar from "../components/Sidebar"; // Ensure this path is correct
 import Header from "../components/Header"; // Ensure this path is correct
 import TaskList from "../components/Tasklist"; // Ensure this path is correct
 

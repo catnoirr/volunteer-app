@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from 'react';
-import { collection, getDocs, doc, getDoc, updateDoc, onSnapshot } from 'firebase/firestore';
+import {  doc, getDoc, updateDoc, onSnapshot } from 'firebase/firestore';
 import { db } from "../../lib/firebaseConfig"; // Adjust the import path as necessary
 import { FaCheck, FaEye } from 'react-icons/fa'; // Import eye and check icons
 import Modal from './Modal'; // Import the Modal component
