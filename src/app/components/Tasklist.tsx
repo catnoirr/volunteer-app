@@ -1,116 +1,163 @@
-// components/TaskList.tsx
-"use client"
-import { FaEye, FaCheck } from 'react-icons/fa';
+"use client";
 import { useEffect, useState } from 'react';
-import { collection, getDocs, query, where } from 'firebase/firestore';
-import { db ,auth } from "../../lib/firebaseConfig"; // Adjust the import path as necessary
-import { onAuthStateChanged } from 'firebase/auth';
+import { collection, getDocs, doc, getDoc, updateDoc } from 'firebase/firestore';
+import { db } from "../../lib/firebaseConfig"; // Adjust the import path as necessary
+import { FaCheck, FaEye } from 'react-icons/fa'; // Import eye and check icons
+import Modal from './Modal'; // Import the Modal component
+import { auth } from '../../lib/firebaseConfig'; // Import auth to access current user
+import { useAuthState } from 'react-firebase-hooks/auth'; // Import for user state
 
-// Define the structure of a Task
-interface Task {
-  id: string;
+// Define the structure of a Request
+interface Request {
+  id: string; // Document ID in the requests collection
   name: string;
-  admin: string;
-  status: 'Done' | 'In Progress'; // Define possible statuses
-  volunteerUID: string;
+  email: string;
+  status: string;
+  details: string;
 }
 
-// Define the structure of a Volunteer
-interface Volunteer {
-  uid: string;
-  requestedUsers: string[]; // Array of user UIDs
-}
-
-export default function TaskList() {
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [userUID, setUserUID] = useState<string | null>(null);
-  const [volunteer, setVolunteer] = useState<Volunteer | null>(null);
+export default function VolunteerList() {
+  const [requests, setRequests] = useState<Request[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [selectedRequest, setSelectedRequest] = useState<Request | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const [user] = useAuthState(auth); // Get current user
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        setUserUID(user.uid);
+    const fetchRequests = async () => {
+      if (!user) return; // Exit if user is not logged in
 
-        // Fetch the volunteer data where requestedUsers contains the user's UID
-        const volunteersQuery = query(
-          collection(db, 'volunteers'),
-          where('requestedUsers', 'array-contains', user.uid)
-        );
+      try {
+        // Fetch the logged-in user's volunteer data
+        const volunteerDocRef = doc(db, 'volunteers', user.uid);
+        const volunteerDoc = await getDoc(volunteerDocRef);
 
-        const volunteerSnapshot = await getDocs(volunteersQuery);
-        const volunteerData = volunteerSnapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() })) as Volunteer[];
-
-        if (volunteerData.length > 0) {
-          setVolunteer(volunteerData[0]); // Assuming you want the first matching volunteer
-          // Fetch tasks for the current volunteer
-          const tasksQuery = query(
-            collection(db, 'tasks'),
-            where('volunteerUID', '==', volunteerData[0].uid)
-          );
-
-          const taskSnapshot = await getDocs(tasksQuery);
-          const tasksData = taskSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Task[];
-          setTasks(tasksData);
+        // Ensure the document exists
+        if (!volunteerDoc.exists()) {
+          throw new Error("Volunteer document not found.");
         }
-      }
-    });
 
-    return () => unsubscribe();
-  }, []);
+        const volunteerData = volunteerDoc.data();
+        const requestedUserIDs: string[] = volunteerData.requestedUsers || [];
+
+        // Fetch requests for the requested user IDs
+        const requestsData: Request[] = [];
+        for (const userId of requestedUserIDs) {
+          const requestDoc = await getDoc(doc(db, 'requests', userId));
+          if (requestDoc.exists()) {
+            const requestData = {
+              id: requestDoc.id,
+              ...requestDoc.data(),
+            } as Request;
+            requestsData.push(requestData);
+          }
+        }
+
+        setRequests(requestsData);
+      } catch (error) {
+        console.error("Error fetching requests:", error);
+        setErrorMessage("Failed to load request data.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchRequests(); // Fetch requests on component mount or user change
+  }, [user]); // Depend on user to re-fetch if user state changes
+
+  const markAsCompleted = async (requestId: string) => {
+    try {
+      const requestDocRef = doc(db, 'requests', requestId);
+      await updateDoc(requestDocRef, { status: 'Completed' });
+
+      setRequests((prevRequests) =>
+        prevRequests.map((request) =>
+          request.id === requestId ? { ...request, status: 'Completed' } : request
+        )
+      );
+    } catch (error) {
+      console.error("Error updating request status:", error);
+      setErrorMessage("Failed to update request status.");
+    }
+  };
+
+  const openModal = (request: Request) => {
+    setSelectedRequest(request);
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setSelectedRequest(null);
+  };
 
   return (
-    <div className="p-5 bg-white shadow-lg rounded-lg">
-      <h2 className="text-2xl font-semibold mb-6">Last Tasks</h2>
-      <div className="flex justify-between items-center mb-6">
-        <p className="text-gray-600">{tasks.length} total, proceed to resolve them</p>
-        <div className="flex space-x-6">
-          <div className="text-center">
-            <span className="block text-3xl font-bold text-green-500">
-              {tasks.filter(task => task.status === 'Done').length}
-            </span>
-            <span className="text-gray-500">Done</span>
-          </div>
-          <div className="text-center">
-            <span className="block text-3xl font-bold text-blue-500">
-              {tasks.filter(task => task.status === 'In Progress').length}
-            </span>
-            <span className="text-gray-500">In Progress</span>
-          </div>
-        </div>
-      </div>
-      <table className="w-full border-t border-gray-200">
-        <thead>
-          <tr className="bg-gray-50">
-            <th className="text-left py-3 px-4 font-medium text-gray-600">Name</th>
-            <th className="text-left py-3 px-4 font-medium text-gray-600">Admin</th>
-            <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
-            <th className="text-center py-3 px-4 font-medium text-gray-600">Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          {tasks.map((task) => (
-            <tr key={task.id} className="border-t hover:bg-gray-50">
-              <td className="py-3 px-4">{task.name}</td>
-              <td className="py-3 px-4">{task.admin}</td>
-              <td className="py-3 px-4">
-                <span className={task.status === 'Done' ? 'text-green-500 font-semibold' : 'text-blue-500 font-semibold'}>
-                  {task.status}
-                </span>
-              </td>
-              <td className="py-3 px-4 text-center space-x-4">
-                <button className="text-gray-500 hover:text-gray-700">
-                  <FaEye />
-                </button>
-                {task.status !== 'Done' && (
-                  <button className="text-green-500 hover:text-green-700">
-                    <FaCheck />
-                  </button>
-                )}
-              </td>
+    <div className="p-5 bg-white shadow-lg rounded-3xl">
+      <h2 className="text-2xl font-semibold mb-6">Your Volunteer Requests</h2>
+
+      {loading ? (
+        <p className="text-gray-600">Loading request information...</p>
+      ) : errorMessage ? (
+        <p className="text-red-500">{errorMessage}</p>
+      ) : (
+        <table className="w-full border-t border-gray-200">
+          <thead>
+            <tr className="bg-gray-50">
+              <th className="text-left py-3 px-4 font-medium text-gray-600">Name</th>
+              <th className="text-left py-3 px-4 font-medium text-gray-600">Email</th>
+              <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
+              <th className="text-center py-3 px-4 font-medium text-gray-600">Action</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {requests.map((request) => (
+              <tr key={request.id} className="border-t hover:bg-gray-50">
+                <td className="py-3 px-4">{request.name}</td>
+                <td className="py-3 px-4">{request.email}</td>
+                <td className="py-3 px-4">
+                  <span
+                    className={`${
+                      request.status === 'Completed' ? 'text-green-500' : 'text-blue-500'
+                    } font-semibold`}
+                  >
+                    {request.status}
+                  </span>
+                </td>
+                <td className="py-3 px-4 text-center">
+                  <button
+                    onClick={() => openModal(request)}
+                    className="text-gray-600 hover:text-gray-800"
+                    title="View Details"
+                  >
+                    <FaEye />
+                  </button>
+                  {request.status !== 'Completed' && (
+                    <button
+                      onClick={() => markAsCompleted(request.id)}
+                      className="text-green-500 hover:text-green-700 ml-2"
+                      title="Mark as Completed"
+                    >
+                      <FaCheck />
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      <Modal isOpen={isModalOpen} onClose={closeModal} title="Request Details">
+        {selectedRequest && (
+          <div>
+            <p><strong>Name:</strong> {selectedRequest.name}</p>
+            <p><strong>Email:</strong> {selectedRequest.email}</p>
+            <p><strong>Status:</strong> {selectedRequest.status}</p>
+            <p><strong>Details:</strong> {selectedRequest.details}</p>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

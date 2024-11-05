@@ -3,7 +3,7 @@ import { FaSearch, FaList, FaThLarge } from 'react-icons/fa';
 
 export default function Header() {
   return (
-    <header className="flex items-center justify-between p-5 bg-white shadow-md">
+    <header className="flex items-center justify-between p-5 bg-white shadow-md rounded-3xl">
       <input
         type="text"
         placeholder="Search"

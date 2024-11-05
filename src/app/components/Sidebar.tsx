@@ -1,102 +1,140 @@
-// components/Sidebar.tsx
-"use client";
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { FaBell, FaRegListAlt, FaCheckCircle, FaComments, FaSignOutAlt } from "react-icons/fa";
-import { auth, db } from "../../lib/firebaseConfig";
-import { onAuthStateChanged, signOut } from "firebase/auth";
-import { collection, getDocs, query, where } from "firebase/firestore";
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { FaHome, FaCalendar, FaComments, FaUserInjured, FaHandsHelping, FaSignOutAlt } from 'react-icons/fa';
+import { auth } from '../../lib/firebaseConfig';
+import { signOut } from 'firebase/auth';
+import Cookies from 'js-cookie';
+import { useAuthState } from 'react-firebase-hooks/auth';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../../lib/firebaseConfig';
 
 export default function Sidebar() {
-  const [loading, setLoading] = useState<boolean>(true);
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [user, setUser] = useState<{ name: string | null; email: string | null }>({
-    name: null,
-    email: null,
-  });
   const router = useRouter();
+  const [user, loading] = useAuthState(auth);
+  const [userName, setUserName] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null); // State to hold user's email
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (userCredential) => {
-      if (userCredential) {
-        setIsAuthenticated(true);
-        const userEmail = userCredential.email;
+    if (!loading && !user) {
+      router.push('/'); // Redirect to login if not authenticated
+    } else if (user) {
+      fetchUserData(user.uid); // Use user.uid to fetch data
+    }
+  }, [user, loading, router]);
 
-        if (userEmail) {
-          try {
-            // Query the `volunteers` collection by the user's email
-            const volunteersRef = collection(db, "volunteers");
-            const q = query(volunteersRef, where("email", "==", userEmail));
-            const querySnapshot = await getDocs(q);
-
-            if (!querySnapshot.empty) {
-              const doc = querySnapshot.docs[0]; // Assuming each email is unique, we take the first match
-              const data = doc.data();
-              console.log("Fetched user data:", data); // Debugging log to check the data
-              setUser({ name: data.name || "User", email: data.email || null });
-            } else {
-              console.warn("No document found in volunteers collection for email:", userEmail);
-            }
-          } catch (error) {
-            console.error("Error fetching document:", error);
-          }
-        }
+  const fetchUserData = async (userId: string) => {
+    try {
+      console.log("Fetching user data for User ID:", userId);
+      const userDocRef = doc(db, 'volunteers', userId); // Use the user's UID as the document ID
+      const userDoc = await getDoc(userDocRef);
+      
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        console.log("Fetched user data:", userData);
+        setUserName(userData.name);
+        setUserEmail(userData.email); // Assuming you have an 'email' field in Firestore
       } else {
-        router.push("/"); // Redirect to login page if not authenticated
+        console.error("No document found with the specified ID:", userId);
       }
-      setLoading(false);
-    });
-
-    return () => unsubscribe(); // Cleanup subscription on unmount
-  }, [router]);
+    } catch (error) {
+      console.error("Error fetching user data:", error);
+    }
+  };
 
   const handleLogout = async () => {
     try {
       await signOut(auth);
-      router.push("/"); // Redirect to the main page after logout
+      Cookies.remove('authToken');
+      router.push('/');
     } catch (error) {
-      console.error("Logout error:", error);
+      console.error("Error logging out:", error);
     }
   };
 
-  if (loading) {
-    return <div>Loading...</div>; // Optionally show a loading state
-  }
-
   return (
-    <div className="w-64 h-screen bg-gray-100 p-5 flex flex-col justify-between">
-      <div>
-        <h1 className="text-2xl font-bold mb-6">NGO</h1>
-        <nav className="space-y-2">
-          <a href="#" className="flex items-center space-x-3 p-2 rounded-lg bg-blue-500 text-white">
-            <FaRegListAlt /> <span>Task List</span>
-          </a>
-          <a href="#" className="flex items-center space-x-3 p-2 rounded-lg">
-            <FaCheckCircle /> <span>Completed</span>
-          </a>
-          <a href="#" className="flex items-center space-x-3 p-2 rounded-lg">
-            <FaBell /> <span>Notification</span>
-            <span className="ml-auto text-sm bg-green-200 text-green-800 rounded-full px-2">2</span>
-          </a>
-          <a href="#" className="flex items-center space-x-3 p-2 rounded-lg">
-            <FaComments /> <span>Chat</span>
-          </a>
-        </nav>
+    <div className="relative flex flex-col justify-between">
+      {/* Icons-only bar on smaller screens */}
+      <div className="flex justify-around py-4 bg-white shadow-md md:hidden rounded-3xl mt-4 border">
+        <button onClick={() => router.push('/dashboard')} className="text-blue-600">
+          <FaHome size={24} />
+        </button>
+        <button onClick={() => router.push('/patients')} className="text-blue-600">
+          <FaUserInjured size={24} />
+        </button>
+        <button onClick={() => router.push('/volunteers')} className="text-blue-600">
+          <FaHandsHelping size={24} />
+        </button>
+        <button onClick={() => router.push('/admin')} className="text-blue-600 hidden md:block">
+          <FaCalendar size={24} />
+        </button>
+        <button onClick={() => router.push('/chat')} className="text-blue-600">
+          <FaComments size={24} />
+        </button>
+        <button onClick={handleLogout} className="text-blue-600">
+          <FaSignOutAlt size={24} />
+        </button>
       </div>
-      <div className="flex items-center space-x-3 mt-10">
-        <img src="/volunteer.jpg" alt="Profile" className="w-10 h-10 rounded-full" />
+
+      {/* Full Sidebar for larger screens */}
+      <div className="hidden md:flex flex-col w-64 bg-white p-6 shadow-2xl rounded-3xl m-5">
+      <div className="flex items-center mb-4">
+  <FaUserInjured className="text-blue-600 text-5xl" />
+  <div className="ml-4">
+    <span className="block text-xl font-bold text-gray-800">{userName || 'User Name'}</span>
+    <span className="block text-sm text-gray-600">{userEmail || 'user@example.com'}</span>
+  </div>
+</div>
+
+        {/* Displaying User Email directly below User Name */}
+        
+
         <div>
-          <p className="text-sm font-semibold">{user.name || "Loading name..."}</p>
-          <p className="text-xs text-gray-500">{user.email || "Loading email..."}</p>
+          <button
+            onClick={() => router.push('/dashboard')}
+            className="flex items-center w-full text-gray-700 hover:text-blue-600 py-3 rounded-lg transition-colors duration-200"
+          >
+            <FaHome className="mr-3 text-blue-600" />
+            <span className="text-lg font-medium">Dashboard</span>
+          </button>
+        </div>
+
+        <div className="mt-10">
+          <h3 className="text-gray-500 uppercase text-xs font-semibold mb-3">Apps</h3>
+          <div
+            className="flex items-center py-2 text-gray-700 hover:text-blue-600 cursor-pointer rounded-lg transition-colors duration-200"
+            onClick={() => router.push('/patients')}
+          >
+            <FaUserInjured className="mr-3 text-blue-600" />
+            <span className="text-lg font-medium">Patients</span>
+          </div>
+          <div
+            className="flex items-center py-2 text-gray-700 hover:text-blue-600 cursor-pointer rounded-lg transition-colors duration-200"
+            onClick={() => router.push('/volunteers')}
+          >
+            <FaHandsHelping className="mr-3 text-blue-600" />
+            <span className="text-lg font-medium">Volunteers</span>
+          </div>
+          <div
+            className="flex items-center py-2 text-gray-700 hover:text-blue-600 cursor-pointer rounded-lg transition-colors duration-200"
+            onClick={() => router.push('/chat')}
+          >
+            <FaComments className="mr-3 text-blue-600" />
+            <span className="text-lg font-medium">Chat</span>
+          </div>
+        </div>
+
+        <div className="md:mt-32">
+          <button
+            onClick={handleLogout}
+            className="flex items-center w-full text-gray-700 hover:text-blue-600 py-3 rounded-lg transition-colors duration-200"
+          >
+            <FaSignOutAlt className="mr-3 text-blue-600" />
+            <span className="text-lg font-medium">Logout</span>
+          </button>
         </div>
       </div>
-      <button
-        onClick={handleLogout}
-        className="flex items-center space-x-2 p-2 mt-4 rounded-lg hover:bg-red-500 text-red-700"
-      >
-        <FaSignOutAlt />
-        <span>Logout</span>
-      </button>
     </div>
   );
 }
