@@ -81,9 +81,9 @@ export default function Header() {
       /> */}
 
       {/* Current Date and Logout */}
-      <div className="sm:flex items-center space-x-4 hidden ">
+      <div className="flex items-center space-x-4  ">
         {/* Display Current Date */}
-        <p>{currentDate}</p>
+        <p className="hidden sm:block">{currentDate}</p>
 
         {/* Logout Button */}
         <button onClick={handleLogout} className="p-2 rounded-lg border">
