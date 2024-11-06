@@ -1,28 +1,35 @@
 // pages/index.js
 "use client";
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useAuthState } from "react-firebase-hooks/auth"; // Firebase auth hook
-import { auth } from "../../lib/firebaseConfig"; // Import Firebase auth configuration
-import Header from "../components/Header"; // Ensure this path is correct
-import TaskList from "../components/Tasklist"; // Ensure this path is correct
+import { useEffect, useState } from "react";
+import { useRouter, usePathname } from "next/navigation";
+import { useAuthState } from "react-firebase-hooks/auth";
+import { auth } from "../../lib/firebaseConfig";
+import Header from "../components/Header";
+import TaskList from "../components/Tasklist";
 
 export default function HomePage() {
-  const [user] = useAuthState(auth); // Get the authenticated user
+  const [user, loading] = useAuthState(auth);
   const router = useRouter();
+  const pathname = usePathname(); // Get the current path
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
   useEffect(() => {
-    if (!user) {
-      router.push("/"); // Redirect to the main page if not logged in
+    if (!loading) {
+      if (user && pathname === "/") {
+        // Redirect to dashboard if the user is authenticated and on the main page
+        router.push("/dashboard");
+      } else if (!user && !isRedirecting) {
+        // Redirect to the main page if the user is not authenticated
+        setIsRedirecting(true);
+        router.push("/");
+      }
     }
-  }, [user, router]); // Run effect when `user` or `router` changes
+  }, [user, loading, router, pathname, isRedirecting]);
 
-  // If user is not authenticated, you could also return null or a loading indicator here
-  if (!user) return null;
+  if (loading || isRedirecting) return null;
 
   return (
     <div className="flex flex-col lg:flex-row bg-gray-200 min-h-screen">
-      {/* <div className='fixed'><Sidebar  /></div> */}
       <div className="flex-1 flex flex-col">
         <main className="p-5 space-y-4">
           <Header />

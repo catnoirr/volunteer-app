@@ -1,12 +1,13 @@
 // src/app/components/AdminLogin.tsx
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { auth } from '../../lib/firebaseConfig';
-import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
-import { useRouter } from 'next/navigation';
-import Cookies from 'js-cookie';
-import { getFirestore, doc, getDoc } from 'firebase/firestore';
+import { useEffect, useState } from "react";
+import { auth } from "../../lib/firebaseConfig";
+import { signInWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
+import { useRouter } from "next/navigation";
+import Cookies from "js-cookie";
+import { getFirestore, doc, getDoc } from "firebase/firestore";
+import { useAuthState } from "react-firebase-hooks/auth";
 
 const db = getFirestore();
 
@@ -17,6 +18,14 @@ export default function AdminLogin() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const [user] = useAuthState(auth); // Access current auth state
+
+  useEffect(() => {
+    if (user) {
+      // If user is already authenticated, redirect to dashboard
+      router.push('/dashboard');
+    }
+  }, [user, router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,7 +54,6 @@ export default function AdminLogin() {
 
       setLoading(false);
     } catch (error) {
-      // Use 'unknown' type and type guard
       if (error instanceof Error) {
         setError(error.message || 'Invalid email or password. Please try again.');
       } else {
@@ -58,8 +66,7 @@ export default function AdminLogin() {
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-purple-900 to-indigo-700 p-6 w-full">
       <div
-        className={`bg-white/10 backdrop-blur-lg rounded-3xl shadow-2xl p-10 w-full max-w-md transform transition duration-500 hover:scale-105 ${loading ? 'border-lightning' : ''
-        }`}
+        className={`bg-white/10 backdrop-blur-lg rounded-3xl shadow-2xl p-10 w-full max-w-md transform transition duration-500 hover:scale-105 ${loading ? 'border-lightning' : ''}`}
       >
         <h2 className="text-4xl font-extrabold text-center text-white tracking-wide mb-4">
           {showForgotPassword ? 'Reset Password' : 'Volunteers Login'}
@@ -136,7 +143,6 @@ function ForgotPasswordForm({ onClose }: { onClose: () => void }) {
       setVerificationSent(true);
       setMessage('Password reset email sent! Check your inbox.');
     } catch (error) {
-      // Use 'unknown' type and type guard
       if (error instanceof Error) {
         setError(error.message || 'Failed to send reset email. Try again.');
       } else {
