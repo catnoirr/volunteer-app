@@ -81,7 +81,7 @@ export default function Header() {
       /> */}
 
       {/* Current Date and Logout */}
-      <div className="flex items-center space-x-4">
+      <div className="sm:flex items-center space-x-4 hidden ">
         {/* Display Current Date */}
         <p>{currentDate}</p>
 
