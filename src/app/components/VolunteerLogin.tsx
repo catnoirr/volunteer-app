@@ -21,13 +21,34 @@ export default function VolunteerLogin() {
 
   useEffect(() => {
     if (user) {
-      // If user is already authenticated, redirect to dashboard
-      router.push('/dashboard');
+      // User is logged in, check if verified
+      checkUserVerification(user.uid);
     } else {
       // If no user, stop loading to show the login page
       setLoading(false);
     }
   }, [user, router]);
+
+  const checkUserVerification = async (userId: string) => {
+    setLoading(true);
+    const userDoc = await getDoc(doc(db, 'volunteers', userId));
+    const userData = userDoc.data();
+
+    if (userData?.role === 'volunteer' && userData?.verified) {
+      // User is verified, continue to the dashboard
+      router.push('/dashboard');
+    } else if (userData?.role === 'volunteer' && !userData?.verified) {
+      // Show a message that the user needs admin verification
+      setError('Please wait for admin verification.');
+      auth.signOut(); // Log the user out
+    } else {
+      // Show message for non-volunteers
+      setError('Volunteers only. Access denied.');
+      auth.signOut(); // Log the user out
+    }
+
+    setLoading(false);
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,28 +60,17 @@ export default function VolunteerLogin() {
       const token = await userCredential.user.getIdToken();
       const userId = userCredential.user.uid;
 
-      // Retrieve the user's role and verification status
-      const userDoc = await getDoc(doc(db, 'volunteers', userId));
-      const userData = userDoc.data();
-
-      if (userData?.role === 'volunteer' && userData?.verified) {
-        Cookies.set('authToken', token, { expires: 1, secure: true, sameSite: 'Strict' });
-        router.push('/dashboard');
-      } else if (userData?.role === 'volunteer' && !userData?.verified) {
-        setError('Please wait for admin verification.');
-        auth.signOut();
-      } else {
-        setError('Access denied. Volunteers only.');
-        auth.signOut();
-      }
-
-      setLoading(false);
+      // Check user verification status after login
+      checkUserVerification(userId);
+      
+      // Set the token if verified
+      Cookies.set('authToken', token, { expires: 1, secure: true, sameSite: 'Strict' });
     } catch (error) {
       if (error instanceof Error) {
         const errorMessage = getFriendlyErrorMessage(error);
         setError(errorMessage);
       } else {
-        setError("An unexpected error occurred. Please try again.");
+        setError('An unexpected error occurred. Please try again.');
       }
       setLoading(false);
     }
@@ -88,28 +98,28 @@ export default function VolunteerLogin() {
   if (loading) {
     return (
       <div className="flex items-center justify-center w-full min-h-screen bg-gradient-to-br from-purple-900 to-indigo-700">
-  <svg
-    className="animate-spin h-5 w-5 text-white mr-2"
-    xmlns="http://www.w3.org/2000/svg"
-    fill="none"
-    viewBox="0 0 24 24"
-  >
-    <circle
-      className="opacity-25"
-      cx="12"
-      cy="12"
-      r="10"
-      stroke="currentColor"
-      strokeWidth="4"
-    ></circle>
-    <path
-      className="opacity-75"
-      fill="currentColor"
-      d="M4 12a8 8 0 018-8v3a5 5 0 00-5 5H4z"
-    ></path>
-  </svg>
-  <p className="text-white text-xl">Loading...</p>
-</div>
+        <svg
+          className="animate-spin h-5 w-5 text-white mr-2"
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+        >
+          <circle
+            className="opacity-25"
+            cx="12"
+            cy="12"
+            r="10"
+            stroke="currentColor"
+            strokeWidth="4"
+          ></circle>
+          <path
+            className="opacity-75"
+            fill="currentColor"
+            d="M4 12a8 8 0 018-8v3a5 5 0 00-5 5H4z"
+          ></path>
+        </svg>
+        <p className="text-white text-xl">Loading...</p>
+      </div>
     );
   }
 
@@ -216,30 +226,21 @@ function ForgotPasswordForm({ onClose }: { onClose: () => void }) {
       ) : (
         <>
           <h3 className="text-xl font-bold text-white">Reset Your Password</h3>
-          {error && <p className="text-red-400 mt-2">{error}</p>}
-          <form onSubmit={handlePasswordReset} className="space-y-4 mt-4">
-            <div>
-              <label className="block text-white font-semibold mb-1">Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="w-full px-4 py-2 border border-white rounded-lg bg-white/20 text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-400"
-                placeholder="Enter your email"
-              />
-            </div>
+          {error && <p className="text-red-400">{error}</p>}
+          <form onSubmit={handlePasswordReset}>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              placeholder="Enter your email address"
+              className="w-full px-4 py-2 mt-4 border border-white rounded-lg bg-white/20 text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-400"
+            />
             <button
               type="submit"
-              className="w-full py-3 bg-purple-500 text-white rounded-lg font-semibold shadow-lg hover:bg-purple-600 transform transition duration-300"
+              className="w-full py-3 mt-4 bg-purple-500 text-white rounded-lg font-semibold shadow-md hover:bg-purple-600 transition"
             >
-              Send Reset Email
-            </button>
-            <button
-              onClick={onClose}
-              className="w-full py-3 mt-2 bg-gray-400 text-gray-800 rounded-lg font-semibold shadow-md hover:bg-gray-500 transition"
-            >
-              Cancel
+              Send Password Reset Email
             </button>
           </form>
         </>
