@@ -1,4 +1,3 @@
-// src/app/components/AdminLogin.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -11,7 +10,7 @@ import { useAuthState } from "react-firebase-hooks/auth";
 
 const db = getFirestore();
 
-export default function AdminLogin() {
+export default function VolunteerLogin() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showForgotPassword, setShowForgotPassword] = useState(false);
@@ -58,13 +57,33 @@ export default function AdminLogin() {
       setLoading(false);
     } catch (error) {
       if (error instanceof Error) {
-        setError(error.message || 'Invalid email or password. Please try again.');
+        const errorMessage = getFriendlyErrorMessage(error);
+        setError(errorMessage);
       } else {
-        setError('An unexpected error occurred. Please try again.');
+        setError("An unexpected error occurred. Please try again.");
       }
       setLoading(false);
     }
   };
+
+  function getFriendlyErrorMessage(error: Error): string {
+    if ("code" in error) {
+      const firebaseError = error as { code: string };
+      switch (firebaseError.code) {
+        case "auth/invalid-credential":
+          return "Invalid credentials. Please check your email and password.";
+        case "auth/user-not-found":
+          return "User not found. Please check your email and try again.";
+        case "auth/wrong-password":
+          return "Incorrect password. Please try again.";
+        case "auth/too-many-requests":
+          return "Too many attempts. Please try again later.";
+        default:
+          return "Login failed. Please try again.";
+      }
+    }
+    return "An error occurred. Please try again.";
+  }
 
   if (loading) {
     return (
@@ -91,7 +110,6 @@ export default function AdminLogin() {
   </svg>
   <p className="text-white text-xl">Loading...</p>
 </div>
-
     );
   }
 
