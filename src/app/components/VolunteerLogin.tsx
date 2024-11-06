@@ -16,7 +16,7 @@ export default function AdminLogin() {
   const [password, setPassword] = useState('');
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true); // Start in loading state
   const router = useRouter();
   const [user] = useAuthState(auth); // Access current auth state
 
@@ -24,6 +24,9 @@ export default function AdminLogin() {
     if (user) {
       // If user is already authenticated, redirect to dashboard
       router.push('/dashboard');
+    } else {
+      // If no user, stop loading to show the login page
+      setLoading(false);
     }
   }, [user, router]);
 
@@ -63,10 +66,39 @@ export default function AdminLogin() {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center w-full min-h-screen bg-gradient-to-br from-purple-900 to-indigo-700">
+  <svg
+    className="animate-spin h-5 w-5 text-white mr-2"
+    xmlns="http://www.w3.org/2000/svg"
+    fill="none"
+    viewBox="0 0 24 24"
+  >
+    <circle
+      className="opacity-25"
+      cx="12"
+      cy="12"
+      r="10"
+      stroke="currentColor"
+      strokeWidth="4"
+    ></circle>
+    <path
+      className="opacity-75"
+      fill="currentColor"
+      d="M4 12a8 8 0 018-8v3a5 5 0 00-5 5H4z"
+    ></path>
+  </svg>
+  <p className="text-white text-xl">Loading...</p>
+</div>
+
+    );
+  }
+
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-purple-900 to-indigo-700 p-6 w-full">
       <div
-        className={`bg-white/10 backdrop-blur-lg rounded-3xl shadow-2xl p-10 w-full max-w-md transform transition duration-500 hover:scale-105 ${loading ? 'border-lightning' : ''}`}
+        className={`bg-white/10 backdrop-blur-lg rounded-3xl shadow-2xl p-10 w-full max-w-md transform transition duration-500 hover:scale-105`}
       >
         <h2 className="text-4xl font-extrabold text-center text-white tracking-wide mb-4">
           {showForgotPassword ? 'Reset Password' : 'Volunteers Login'}
